@@ -1,20 +1,20 @@
 ---
 import Layout from "../layouts/Layout.astro";
 import StatusBar from "../components/StatusBar.astro";
-import Appearance from "../components/panels/flavors/Appearance.astro";
+import Display from "../components/panels/flavors/Display.astro";
 import Objects from "../components/panels/flavors/Objects.astro";
 import "./style.css";
 ---
 
 <Layout>
   <div id="app">
-    <StatusBar panels={["appearance", "objects"]} />
+    <StatusBar panels={["display", "objects"]} />
 
     <div id="canvasWrapper">
       <canvas id="view"></canvas>
     </div>
 
-    <Appearance />
+    <Display />
     <Objects />
   </div>
 </Layout>

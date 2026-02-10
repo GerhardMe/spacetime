@@ -2,7 +2,7 @@
 import Panel from "../index.astro";
 ---
 
-<Panel name="Appearance">
+<Panel name="Display">
   <div class="row">
     <label>
       Accent Color
@@ -21,8 +21,22 @@ import Panel from "../index.astro";
 
   <div class="row">
     <label>
-      <input type="checkbox" id="showGrid" checked />
+      <input type="checkbox" id="showGrid" />
       Show Grid
+    </label>
+  </div>
+
+  <div class="row">
+    <label>
+      <input type="checkbox" id="showPresent" checked />
+      Show Present Line
+    </label>
+  </div>
+
+  <div class="row">
+    <label>
+      Present (t)
+      <input type="number" id="presentTime" class="accentColor" value="0" step="0.1" />
     </label>
   </div>
 </Panel>

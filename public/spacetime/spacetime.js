@@ -181,7 +181,19 @@ function render() {
     const tMax = topLeft.t + 1;
 
     // Draw grid
-    drawGrid(refV);
+    if (appearance.showGrid) {
+        drawGrid(refV);
+    }
+
+    // Draw lightcones
+    if (appearance.showLightcones) {
+        drawLightcones();
+    }
+
+    // Draw present line
+    if (appearance.showPresent) {
+        drawPresentLine();
+    }
 
     // Draw world lines
     for (const obj of objects) {
@@ -232,32 +244,66 @@ function drawGrid(refV) {
         ctx.lineTo(p2.sx, p2.sy);
         ctx.stroke();
     }
+}
 
-    // Draw axes
-    ctx.strokeStyle = "#444";
+function drawPresentLine() {
+    const w = canvas.width;
+    const topLeft = screenToWorld(0, 0);
+    const bottomRight = screenToWorld(w, 0);
+
+    const t = appearance.presentTime;
+    const p1 = worldToScreen(bottomRight.x, t);
+    const p2 = worldToScreen(topLeft.x, t);
+
+    ctx.strokeStyle = appearance.accentColor;
     ctx.lineWidth = 2;
-
-    // x-axis (t=0)
-    const xAxis1 = worldToScreen(bottomRight.x, 0);
-    const xAxis2 = worldToScreen(topLeft.x, 0);
     ctx.beginPath();
-    ctx.moveTo(xAxis1.sx, xAxis1.sy);
-    ctx.lineTo(xAxis2.sx, xAxis2.sy);
+    ctx.moveTo(p1.sx, p1.sy);
+    ctx.lineTo(p2.sx, p2.sy);
     ctx.stroke();
 
-    // t-axis (x=0)
-    const tAxis1 = worldToScreen(0, bottomRight.t);
-    const tAxis2 = worldToScreen(0, topLeft.t);
-    ctx.beginPath();
-    ctx.moveTo(tAxis1.sx, tAxis1.sy);
-    ctx.lineTo(tAxis2.sx, tAxis2.sy);
-    ctx.stroke();
-
-    // Axis labels
-    ctx.fillStyle = "#666";
+    // Label
+    ctx.fillStyle = appearance.accentColor;
     ctx.font = "12px system-ui";
-    ctx.fillText("x (space)", w - 60, xAxis1.sy - 5);
-    ctx.fillText("t (time)", tAxis2.sx + 5, 20);
+    ctx.fillText("now", p2.sx + 5, p2.sy - 5);
+}
+
+function drawLightcones() {
+    const w = canvas.width;
+    const h = canvas.height;
+
+    const topLeft = screenToWorld(0, 0);
+    const bottomRight = screenToWorld(w, h);
+
+    // Origin point
+    const origin = worldToScreen(0, 0);
+
+    // Calculate cone edges extending to canvas bounds
+    const tMax = topLeft.t;
+    const tMin = bottomRight.t;
+    const xMax = Math.max(Math.abs(topLeft.x), Math.abs(bottomRight.x)) + 10;
+
+    // Future lightcone (t > 0): filled triangle
+    ctx.fillStyle = appearance.accentColor + "20"; // ~12% opacity
+    ctx.beginPath();
+    ctx.moveTo(origin.sx, origin.sy);
+    const futureRight = worldToScreen(tMax, tMax);
+    const futureLeft = worldToScreen(-tMax, tMax);
+    ctx.lineTo(futureRight.sx, futureRight.sy);
+    ctx.lineTo(futureLeft.sx, futureLeft.sy);
+    ctx.closePath();
+    ctx.fill();
+
+    // Past lightcone (t < 0): slightly different shade
+    ctx.fillStyle = appearance.accentColor + "15"; // ~8% opacity
+    ctx.beginPath();
+    ctx.moveTo(origin.sx, origin.sy);
+    const pastRight = worldToScreen(-tMin, tMin);
+    const pastLeft = worldToScreen(tMin, tMin);
+    ctx.lineTo(pastRight.sx, pastRight.sy);
+    ctx.lineTo(pastLeft.sx, pastLeft.sy);
+    ctx.closePath();
+    ctx.fill();
 }
 
 function drawWorldLine(points, color, isReference) {

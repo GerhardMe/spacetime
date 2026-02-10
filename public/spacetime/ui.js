@@ -6,6 +6,30 @@ const canvas = document.getElementById("view");
 const ctx = canvas.getContext("2d");
 const statusEl = document.getElementById("status");
 
+// Display controls
+const accentColorInput = document.getElementById("accentColor");
+const showLightconesInput = document.getElementById("showLightcones");
+const showGridInput = document.getElementById("showGrid");
+const showPresentInput = document.getElementById("showPresent");
+const presentTimeInput = document.getElementById("presentTime");
+
+// Display state (will be synced from DOM on init)
+const appearance = {
+    accentColor: "#00ffff",
+    showLightcones: false,
+    showGrid: false,
+    showPresent: true,
+    presentTime: 0
+};
+
+function syncAppearanceFromDOM() {
+    if (accentColorInput) appearance.accentColor = accentColorInput.value;
+    if (showLightconesInput) appearance.showLightcones = showLightconesInput.checked;
+    if (showGridInput) appearance.showGrid = showGridInput.checked;
+    if (showPresentInput) appearance.showPresent = showPresentInput.checked;
+    if (presentTimeInput) appearance.presentTime = parseFloat(presentTimeInput.value) || 0;
+}
+
 const objNameInput = document.getElementById("objName");
 const objXInput = document.getElementById("objX");
 const objVInput = document.getElementById("objV");
@@ -170,6 +194,63 @@ function setupPanelBehavior(entry) {
     }
 }
 
+// ------------------ Appearance ------------------
+
+function updateAccentColor(color) {
+    appearance.accentColor = color;
+    document.documentElement.style.setProperty("--accent-color", color);
+
+    // Update all accentColor elements
+    document.querySelectorAll(".accentColor").forEach(el => {
+        el.style.borderColor = color;
+        el.style.color = color;
+    });
+
+    if (typeof render === "function") render();
+}
+
+function setupAppearance() {
+    // Sync initial state from DOM
+    syncAppearanceFromDOM();
+
+    // Apply initial accent color
+    updateAccentColor(appearance.accentColor);
+
+    if (accentColorInput) {
+        accentColorInput.addEventListener("input", (e) => {
+            updateAccentColor(e.target.value);
+        });
+    }
+
+    if (showLightconesInput) {
+        showLightconesInput.addEventListener("change", (e) => {
+            appearance.showLightcones = e.target.checked;
+            if (typeof render === "function") render();
+        });
+    }
+
+    if (showGridInput) {
+        showGridInput.addEventListener("change", (e) => {
+            appearance.showGrid = e.target.checked;
+            if (typeof render === "function") render();
+        });
+    }
+
+    if (showPresentInput) {
+        showPresentInput.addEventListener("change", (e) => {
+            appearance.showPresent = e.target.checked;
+            if (typeof render === "function") render();
+        });
+    }
+
+    if (presentTimeInput) {
+        presentTimeInput.addEventListener("input", (e) => {
+            appearance.presentTime = parseFloat(e.target.value) || 0;
+            if (typeof render === "function") render();
+        });
+    }
+}
+
 // ------------------ Status ------------------
 
 function setStatus(msg) {
@@ -180,13 +261,16 @@ function setStatus(msg) {
 
 function initUI() {
     // Register all panels (order determines layout position)
-    registerPanel("appearance");
+    registerPanel("display");
     registerPanel("objects");
 
     // Setup behavior for each
     for (const entry of panels) {
         setupPanelBehavior(entry);
     }
+
+    // Setup appearance controls
+    setupAppearance();
 
     // Initial layout
     layoutPanels();
