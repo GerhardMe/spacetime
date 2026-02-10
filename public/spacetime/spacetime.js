@@ -136,6 +136,104 @@ function updateObjectList() {
     });
 }
 
+// ------------------ Labels ------------------
+
+let labelContainer = null;
+let pendingLabels = [];
+
+function initLabelContainer() {
+    labelContainer = document.getElementById("labelContainer");
+    if (!labelContainer) {
+        labelContainer = document.createElement("div");
+        labelContainer.id = "labelContainer";
+        canvas.parentElement.appendChild(labelContainer);
+    }
+}
+
+function renderLabels() {
+    if (!labelContainer) initLabelContainer();
+
+    // Clear existing labels
+    labelContainer.innerHTML = "";
+
+    const w = canvas.width;
+    const h = canvas.height;
+    const topLeft = screenToWorld(0, 0);
+    const bottomRight = screenToWorld(w, h);
+
+    for (const { points, name, color } of pendingLabels) {
+        const t0 = points[0].t, t1 = points[1].t;
+        const x0 = points[0].x, x1 = points[1].x;
+        const dt = t1 - t0;
+        const dx = x1 - x0;
+
+        const xAtT = (t) => x0 + dx * (t - t0) / dt;
+        const tAtX = (x) => t0 + dt * (x - x0) / dx;
+
+        // Find exit points
+        const candidates = [];
+
+        const xAtTop = xAtT(topLeft.t);
+        if (xAtTop >= topLeft.x && xAtTop <= bottomRight.x) {
+            candidates.push({ x: xAtTop, t: topLeft.t, edge: "top" });
+        }
+
+        if (Math.abs(dx) > 1e-10) {
+            const tAtLeft = tAtX(topLeft.x);
+            if (tAtLeft >= bottomRight.t && tAtLeft <= topLeft.t) {
+                candidates.push({ x: topLeft.x, t: tAtLeft, edge: "left" });
+            }
+            const tAtRight = tAtX(bottomRight.x);
+            if (tAtRight >= bottomRight.t && tAtRight <= topLeft.t) {
+                candidates.push({ x: bottomRight.x, t: tAtRight, edge: "right" });
+            }
+        }
+
+        if (candidates.length === 0) continue;
+
+        candidates.sort((a, b) => b.t - a.t);
+        const exit = candidates[0];
+        const exitScreen = worldToScreen(exit.x, exit.t);
+
+        // Create label div
+        const label = document.createElement("div");
+        label.className = "worldLineLabel";
+        label.textContent = `(${name})`;
+        label.style.color = color;
+
+        // Determine which corner anchors to exit point based on line direction and exit edge
+        // The label must stay INSIDE the visible area, extending away from the exit edge
+        // dx > 0 means line goes right (in world coords), dx < 0 means left
+        const goingRight = dx > 0;
+
+        label.style.position = "absolute";
+
+        if (exit.edge === "top") {
+            // Line exits at top - label extends DOWN, anchor top corner
+            label.style.top = exitScreen.sy + "px";
+            if (goingRight) {
+                // Anchor top-left corner
+                label.style.left = exitScreen.sx + "px";
+            } else {
+                // Anchor top-right corner
+                label.style.right = (w - exitScreen.sx) + "px";
+            }
+        } else if (exit.edge === "right") {
+            // Line exits at right - label extends LEFT, anchor top-right corner
+            label.style.top = exitScreen.sy + "px";
+            label.style.right = (w - exitScreen.sx) + "px";
+        } else {
+            // Line exits at left - label extends RIGHT, anchor top-left corner
+            label.style.top = exitScreen.sy + "px";
+            label.style.left = exitScreen.sx + "px";
+        }
+
+        labelContainer.appendChild(label);
+    }
+
+    pendingLabels = [];
+}
+
 // ------------------ Canvas ------------------
 
 let viewCenterX = 0;
@@ -173,7 +271,10 @@ function render() {
     const w = canvas.width;
     const h = canvas.height;
 
-    // Clear
+    // Clear pending labels from previous frame
+    pendingLabels = [];
+
+    // Clear canvas
     ctx.fillStyle = "#0a0a0a";
     ctx.fillRect(0, 0, w, h);
 
@@ -210,6 +311,9 @@ function render() {
         const points = getWorldLineInObserverFrame(obj, tMin, tMax, observerV);
         drawWorldLine(points, obj.color, false, obj.name);
     }
+
+    // Render HTML labels
+    renderLabels();
 
     // Update status
     setStatus(`Spacetime | v=${observerV.toFixed(2)}c | Objects: ${objects.length}`);
@@ -334,82 +438,9 @@ function drawWorldLine(points, color, isObserver, name) {
 
     ctx.stroke();
 
-    // Draw label where line exits the visible area
+    // Queue label for HTML rendering (processed after canvas draw)
     if (name && points.length >= 2) {
-        const MARGIN = 6; // Consistent margin in pixels
-
-        const w = canvas.width;
-        const h = canvas.height;
-
-        // Get world coordinates of screen edges
-        const topLeft = screenToWorld(0, 0);
-        const bottomRight = screenToWorld(w, h);
-
-        // Line parameters
-        const t0 = points[0].t, t1 = points[1].t;
-        const x0 = points[0].x, x1 = points[1].x;
-        const dt = t1 - t0;
-        const dx = x1 - x0;
-
-        // Helper: interpolate x at given t
-        const xAtT = (t) => x0 + dx * (t - t0) / dt;
-        // Helper: interpolate t at given x
-        const tAtX = (x) => t0 + dt * (x - x0) / dx;
-
-        // Find candidate exit points (where line intersects screen edges)
-        const candidates = [];
-
-        // Top edge intersection (t = topLeft.t)
-        const xAtTop = xAtT(topLeft.t);
-        if (xAtTop >= topLeft.x && xAtTop <= bottomRight.x) {
-            candidates.push({ x: xAtTop, t: topLeft.t, edge: "top" });
-        }
-
-        // Left edge intersection (x = topLeft.x)
-        if (Math.abs(dx) > 1e-10) {
-            const tAtLeft = tAtX(topLeft.x);
-            if (tAtLeft >= bottomRight.t && tAtLeft <= topLeft.t) {
-                candidates.push({ x: topLeft.x, t: tAtLeft, edge: "left" });
-            }
-        }
-
-        // Right edge intersection (x = bottomRight.x)
-        if (Math.abs(dx) > 1e-10) {
-            const tAtRight = tAtX(bottomRight.x);
-            if (tAtRight >= bottomRight.t && tAtRight <= topLeft.t) {
-                candidates.push({ x: bottomRight.x, t: tAtRight, edge: "right" });
-            }
-        }
-
-        // Pick the highest exit point (largest t = smallest screen y)
-        if (candidates.length > 0) {
-            candidates.sort((a, b) => b.t - a.t);
-            const exit = candidates[0];
-            const exitScreen = worldToScreen(exit.x, exit.t);
-
-            ctx.fillStyle = color;
-            ctx.font = "bold 11px system-ui";
-            const text = `(${name})`;
-            const textWidth = ctx.measureText(text).width;
-
-            let labelX, labelY;
-
-            if (exit.edge === "right") {
-                // Line exits on right - put label to the left of exit point
-                labelX = exitScreen.sx - textWidth - MARGIN;
-                labelY = exitScreen.sy + MARGIN + 10; // +10 for text baseline
-            } else {
-                // Line exits on top or left - put label to the right of exit point
-                labelX = exitScreen.sx + MARGIN;
-                labelY = exitScreen.sy + MARGIN + 10;
-            }
-
-            // Clamp to keep on screen
-            labelX = Math.max(MARGIN, Math.min(w - textWidth - MARGIN, labelX));
-            labelY = Math.max(MARGIN + 10, Math.min(h - MARGIN, labelY));
-
-            ctx.fillText(text, labelX, labelY);
-        }
+        pendingLabels.push({ points, name, color });
     }
 }
 
