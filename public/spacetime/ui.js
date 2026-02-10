@@ -36,7 +36,17 @@ const objVInput = document.getElementById("objV");
 const objColorInput = document.getElementById("objColor");
 const addObjectBtn = document.getElementById("addObject");
 const objectListEl = document.getElementById("objectList");
-const refFrameSelect = document.getElementById("refFrame");
+
+// Frame controls
+const frameVInput = document.getElementById("frameV");
+const frameXInput = document.getElementById("frameX");
+const frameMatchSelect = document.getElementById("frameMatch");
+
+// Frame state
+const frame = {
+    v: 0,
+    x: 0
+};
 
 // ------------------ Panel Framework ------------------
 
@@ -251,6 +261,74 @@ function setupAppearance() {
     }
 }
 
+// ------------------ Frame ------------------
+
+function syncFrameFromDOM() {
+    if (frameVInput) frame.v = parseFloat(frameVInput.value) || 0;
+    if (frameXInput) frame.x = parseFloat(frameXInput.value) || 0;
+}
+
+function updateFrameMatchSelect() {
+    if (!frameMatchSelect) return;
+
+    const currentVal = frameMatchSelect.value;
+    frameMatchSelect.innerHTML = '<option value="">-- Select --</option>';
+
+    if (typeof objects !== "undefined") {
+        for (const obj of objects) {
+            const option = document.createElement("option");
+            option.value = obj.id;
+            option.textContent = obj.name;
+            frameMatchSelect.appendChild(option);
+        }
+    }
+
+    frameMatchSelect.value = currentVal;
+}
+
+function matchFrameToObject(id) {
+    if (typeof objects === "undefined") return;
+
+    const obj = objects.find(o => o.id === id);
+    if (!obj) return;
+
+    frame.v = obj.v;
+    frame.x = obj.x;
+
+    if (frameVInput) frameVInput.value = frame.v;
+    if (frameXInput) frameXInput.value = frame.x;
+
+    if (typeof render === "function") render();
+}
+
+function setupFrame() {
+    syncFrameFromDOM();
+
+    if (frameVInput) {
+        frameVInput.addEventListener("input", (e) => {
+            frame.v = parseFloat(e.target.value) || 0;
+            frame.v = Math.max(-0.999, Math.min(0.999, frame.v));
+            if (typeof render === "function") render();
+        });
+    }
+
+    if (frameXInput) {
+        frameXInput.addEventListener("input", (e) => {
+            frame.x = parseFloat(e.target.value) || 0;
+            if (typeof render === "function") render();
+        });
+    }
+
+    if (frameMatchSelect) {
+        frameMatchSelect.addEventListener("change", (e) => {
+            if (e.target.value) {
+                matchFrameToObject(parseFloat(e.target.value));
+                e.target.value = ""; // Reset dropdown
+            }
+        });
+    }
+}
+
 // ------------------ Status ------------------
 
 function setStatus(msg) {
@@ -262,6 +340,7 @@ function setStatus(msg) {
 function initUI() {
     // Register all panels (order determines layout position)
     registerPanel("display");
+    registerPanel("observer");
     registerPanel("objects");
 
     // Setup behavior for each
@@ -269,8 +348,9 @@ function initUI() {
         setupPanelBehavior(entry);
     }
 
-    // Setup appearance controls
+    // Setup controls
     setupAppearance();
+    setupFrame();
 
     // Initial layout
     layoutPanels();

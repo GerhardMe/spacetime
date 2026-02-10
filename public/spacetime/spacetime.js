@@ -1,11 +1,13 @@
 "use strict";
 
-// ------------------ state ------------------
+// ------------------ Physics Constants ------------------
+// Using natural units where c = 1
+
+// ------------------ State ------------------
 
 const objects = [];
-let currentRefFrame = null; // null means lab frame
 
-// ------------------ object management ------------------
+// ------------------ Object Management ------------------
 
 function createObject(name, x, v, color) {
     return {
@@ -20,7 +22,7 @@ function createObject(name, x, v, color) {
 function addObject(obj) {
     objects.push(obj);
     updateObjectList();
-    updateRefFrameSelect();
+    if (typeof updateFrameMatchSelect === "function") updateFrameMatchSelect();
     render();
 }
 
@@ -28,60 +30,84 @@ function removeObject(id) {
     const idx = objects.findIndex(o => o.id === id);
     if (idx !== -1) {
         objects.splice(idx, 1);
-        if (currentRefFrame === id) {
-            currentRefFrame = null;
-        }
         updateObjectList();
-        updateRefFrameSelect();
+        if (typeof updateFrameMatchSelect === "function") updateFrameMatchSelect();
         render();
     }
 }
 
-function setRefFrame(id) {
-    currentRefFrame = id;
-    render();
-}
+// ------------------ Lorentz Transformations ------------------
 
-// ------------------ Lorentz transformation ------------------
-
+// Lorentz factor
 function gamma(v) {
+    if (Math.abs(v) >= 1) return Infinity;
     return 1 / Math.sqrt(1 - v * v);
 }
 
-// Transform coordinates from lab frame to frame moving with velocity v
-function lorentzTransform(x, t, v) {
-    const g = gamma(v);
+// Transform event (x, t) from lab frame to frame moving at velocity V
+function lorentzTransform(x, t, V) {
+    const g = gamma(V);
     return {
-        x: g * (x - v * t),
-        t: g * (t - v * x)
+        x: g * (x - V * t),
+        t: g * (t - V * x)
     };
 }
 
-// Get world line points for an object in current reference frame
-function getWorldLine(obj, tMin, tMax, refV) {
-    const points = [];
-    const steps = 100;
-    const dt = (tMax - tMin) / steps;
-
-    for (let i = 0; i <= steps; i++) {
-        const tLab = tMin + i * dt;
-        // Position in lab frame at time tLab
-        const xLab = obj.x + obj.v * tLab;
-
-        if (refV === 0) {
-            // Lab frame
-            points.push({ x: xLab, t: tLab });
-        } else {
-            // Transform to moving frame
-            const transformed = lorentzTransform(xLab, tLab, refV);
-            points.push({ x: transformed.x, t: transformed.t });
-        }
-    }
-
-    return points;
+// Relativistic velocity addition: velocity u in lab frame -> velocity in frame moving at V
+function velocityTransform(u, V) {
+    return (u - V) / (1 - u * V);
 }
 
-// ------------------ UI updates ------------------
+// Get world line in observer's frame for an object defined in lab frame
+// Returns two points (sufficient for a straight line)
+function getWorldLineInObserverFrame(obj, tPrimeMin, tPrimeMax, observerV) {
+    // Object in lab frame: x = obj.x + obj.v * t
+    // Observer moves at velocity observerV relative to lab
+
+    // Velocity of object in observer's frame
+    const vPrime = velocityTransform(obj.v, observerV);
+
+    // Find where object's world line is at t'=0 in observer's frame
+    // This requires finding the lab frame event (x, t) where:
+    // 1. x = obj.x + obj.v * t (on object's world line)
+    // 2. t' = gamma * (t - observerV * x) = 0
+    // From (2): t = observerV * x
+    // Substituting into (1): x = obj.x + obj.v * observerV * x
+    // x * (1 - obj.v * observerV) = obj.x
+    // x = obj.x / (1 - obj.v * observerV)
+
+    const g = gamma(observerV);
+    const denominator = 1 - obj.v * observerV;
+
+    if (Math.abs(denominator) < 1e-10) {
+        // Edge case: object moving at same velocity as light would in observer's direction
+        return [];
+    }
+
+    const xLabAtTPrime0 = obj.x / denominator;
+    const tLabAtTPrime0 = observerV * xLabAtTPrime0;
+
+    // Transform this point to get x' at t'=0
+    const xPrimeAt0 = g * (xLabAtTPrime0 - observerV * tLabAtTPrime0);
+
+    // Now we have: in observer's frame, object is at xPrimeAt0 when t'=0, moving at vPrime
+    // World line in observer's frame: x' = xPrimeAt0 + vPrime * t'
+
+    return [
+        { x: xPrimeAt0 + vPrime * tPrimeMin, t: tPrimeMin },
+        { x: xPrimeAt0 + vPrime * tPrimeMax, t: tPrimeMax }
+    ];
+}
+
+// Get observer's world line (always vertical at x=0 in their own frame)
+function getObserverWorldLine(tPrimeMin, tPrimeMax) {
+    return [
+        { x: 0, t: tPrimeMin },
+        { x: 0, t: tPrimeMax }
+    ];
+}
+
+// ------------------ UI Updates ------------------
 
 function updateObjectList() {
     if (!objectListEl) return;
@@ -110,23 +136,7 @@ function updateObjectList() {
     });
 }
 
-function updateRefFrameSelect() {
-    if (!refFrameSelect) return;
-
-    refFrameSelect.innerHTML = '<option value="">Lab Frame</option>';
-
-    for (const obj of objects) {
-        const option = document.createElement("option");
-        option.value = obj.id;
-        option.textContent = obj.name;
-        if (currentRefFrame === obj.id) {
-            option.selected = true;
-        }
-        refFrameSelect.appendChild(option);
-    }
-}
-
-// ------------------ canvas ------------------
+// ------------------ Canvas ------------------
 
 let viewCenterX = 0;
 let viewCenterT = 2;
@@ -167,14 +177,10 @@ function render() {
     ctx.fillStyle = "#0a0a0a";
     ctx.fillRect(0, 0, w, h);
 
-    // Get reference frame velocity
-    let refV = 0;
-    if (currentRefFrame !== null) {
-        const refObj = objects.find(o => o.id === currentRefFrame);
-        if (refObj) refV = refObj.v;
-    }
+    // Get observer's velocity (from frame state in ui.js)
+    const observerV = frame.v;
 
-    // Calculate visible time range
+    // Calculate visible time range in observer's frame
     const topLeft = screenToWorld(0, 0);
     const bottomRight = screenToWorld(w, h);
     const tMin = bottomRight.t - 1;
@@ -182,7 +188,7 @@ function render() {
 
     // Draw grid
     if (appearance.showGrid) {
-        drawGrid(refV);
+        drawGrid();
     }
 
     // Draw lightcones
@@ -195,18 +201,21 @@ function render() {
         drawPresentLine();
     }
 
-    // Draw world lines
+    // Draw observer's world line (always vertical at x=0)
+    const observerLine = getObserverWorldLine(tMin, tMax);
+    drawWorldLine(observerLine, appearance.accentColor, true, "Observer");
+
+    // Draw object world lines
     for (const obj of objects) {
-        const points = getWorldLine(obj, tMin, tMax, refV);
-        drawWorldLine(points, obj.color, obj.id === currentRefFrame);
+        const points = getWorldLineInObserverFrame(obj, tMin, tMax, observerV);
+        drawWorldLine(points, obj.color, false, obj.name);
     }
 
     // Update status
-    const refName = currentRefFrame === null ? "Lab" : objects.find(o => o.id === currentRefFrame)?.name || "Lab";
-    setStatus(`Spacetime | Frame: ${refName} | Objects: ${objects.length}`);
+    setStatus(`Spacetime | v=${observerV.toFixed(2)}c | Objects: ${objects.length}`);
 }
 
-function drawGrid(refV) {
+function drawGrid() {
     const w = canvas.width;
     const h = canvas.height;
 
@@ -231,7 +240,7 @@ function drawGrid(refV) {
         ctx.stroke();
     }
 
-    // Draw horizontal lines (constant t in current frame)
+    // Draw horizontal lines (constant t)
     const tStep = 1;
     const tStart = Math.floor(bottomRight.t / tStep) * tStep;
     const tEnd = Math.ceil(topLeft.t / tStep) * tStep;
@@ -275,42 +284,44 @@ function drawLightcones() {
     const topLeft = screenToWorld(0, 0);
     const bottomRight = screenToWorld(w, h);
 
-    // Origin point
-    const origin = worldToScreen(0, 0);
+    // Origin at present time, x=0 (observer's position)
+    const t0 = appearance.presentTime;
+    const origin = worldToScreen(0, t0);
 
     // Calculate cone edges extending to canvas bounds
     const tMax = topLeft.t;
     const tMin = bottomRight.t;
-    const xMax = Math.max(Math.abs(topLeft.x), Math.abs(bottomRight.x)) + 10;
 
-    // Future lightcone (t > 0): filled triangle
-    ctx.fillStyle = appearance.accentColor + "20"; // ~12% opacity
+    // Future lightcone (t > t0): filled triangle
+    const futureT = tMax - t0;
+    ctx.fillStyle = appearance.accentColor + "20";
     ctx.beginPath();
     ctx.moveTo(origin.sx, origin.sy);
-    const futureRight = worldToScreen(tMax, tMax);
-    const futureLeft = worldToScreen(-tMax, tMax);
+    const futureRight = worldToScreen(futureT, tMax);
+    const futureLeft = worldToScreen(-futureT, tMax);
     ctx.lineTo(futureRight.sx, futureRight.sy);
     ctx.lineTo(futureLeft.sx, futureLeft.sy);
     ctx.closePath();
     ctx.fill();
 
-    // Past lightcone (t < 0): slightly different shade
-    ctx.fillStyle = appearance.accentColor + "15"; // ~8% opacity
+    // Past lightcone (t < t0): slightly different shade
+    const pastT = t0 - tMin;
+    ctx.fillStyle = appearance.accentColor + "15";
     ctx.beginPath();
     ctx.moveTo(origin.sx, origin.sy);
-    const pastRight = worldToScreen(-tMin, tMin);
-    const pastLeft = worldToScreen(tMin, tMin);
+    const pastRight = worldToScreen(pastT, tMin);
+    const pastLeft = worldToScreen(-pastT, tMin);
     ctx.lineTo(pastRight.sx, pastRight.sy);
     ctx.lineTo(pastLeft.sx, pastLeft.sy);
     ctx.closePath();
     ctx.fill();
 }
 
-function drawWorldLine(points, color, isReference) {
+function drawWorldLine(points, color, isObserver, name) {
     if (points.length < 2) return;
 
     ctx.strokeStyle = color;
-    ctx.lineWidth = isReference ? 3 : 2;
+    ctx.lineWidth = isObserver ? 3 : 2;
 
     ctx.beginPath();
     const first = worldToScreen(points[0].x, points[0].t);
@@ -322,9 +333,37 @@ function drawWorldLine(points, color, isReference) {
     }
 
     ctx.stroke();
+
+    // Draw label near top of visible line
+    if (name && points.length >= 2) {
+        // Line goes from points[0] to points[1]
+        // Find where line is at a t value near top of screen
+        const topLeft = screenToWorld(0, 0);
+        const labelT = topLeft.t - 0.5; // Slightly below top edge
+
+        // Interpolate x position at labelT
+        const t0 = points[0].t;
+        const t1 = points[1].t;
+        const x0 = points[0].x;
+        const x1 = points[1].x;
+
+        // Linear interpolation: x = x0 + (x1 - x0) * (labelT - t0) / (t1 - t0)
+        const frac = (labelT - t0) / (t1 - t0);
+        const labelX = x0 + (x1 - x0) * frac;
+
+        const labelPos = worldToScreen(labelX, labelT);
+
+        // Only draw if on screen
+        if (labelPos.sx >= 0 && labelPos.sx <= canvas.width - 50 &&
+            labelPos.sy >= 10 && labelPos.sy <= canvas.height) {
+            ctx.fillStyle = color;
+            ctx.font = "bold 11px system-ui";
+            ctx.fillText(`(${name})`, labelPos.sx + 5, labelPos.sy + 4);
+        }
+    }
 }
 
-// ------------------ pan & zoom ------------------
+// ------------------ Pan & Zoom ------------------
 
 let isPanning = false;
 let lastMouseX = 0;

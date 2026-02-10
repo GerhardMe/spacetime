@@ -1,0 +1,44 @@
+---
+import Panel from "../index.astro";
+---
+
+<Panel name="Observer">
+  <div class="row">
+    <label>
+      Velocity (v/c)
+      <input
+        type="number"
+        id="frameV"
+        class="accentColor"
+        value="0"
+        step="0.01"
+        min="-0.999"
+        max="0.999"
+      />
+    </label>
+  </div>
+
+  <div class="row">
+    <label>
+      Position (x)
+      <input
+        type="number"
+        id="frameX"
+        class="accentColor"
+        value="0"
+        step="0.1"
+      />
+    </label>
+  </div>
+
+  <hr class="divider" />
+
+  <div class="row">
+    <label>
+      Match to
+      <select id="frameMatch" class="accentColor">
+        <option value="">-- Select --</option>
+      </select>
+    </label>
+  </div>
+</Panel>

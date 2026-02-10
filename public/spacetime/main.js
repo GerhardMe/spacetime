@@ -6,11 +6,10 @@ function init() {
     initUI();
     resize();
 
-    // Add default objects
-    addObject(createObject("Observer", 0, 0, "#ffffff"));
-    addObject(createObject("Rocket", 1, 0.5, "#ff6b6b"));
+    // Add default object - a rocket moving at 0.5c
+    addObject(createObject("Rocket", 0, 0.5, "#ff6b6b"));
 
-    // Event listeners
+    // Event listeners for adding objects
     if (addObjectBtn) {
         addObjectBtn.addEventListener("click", () => {
             const name = objNameInput.value || "Object";
@@ -19,7 +18,7 @@ function init() {
             const color = objColorInput.value || "#00ffff";
 
             // Clamp velocity
-            const vClamped = Math.max(-0.99, Math.min(0.99, v));
+            const vClamped = Math.max(-0.999, Math.min(0.999, v));
 
             addObject(createObject(name, x, vClamped, color));
 
@@ -30,13 +29,6 @@ function init() {
                 const num = match[2] ? parseInt(match[2]) + 1 : 2;
                 objNameInput.value = base + num;
             }
-        });
-    }
-
-    if (refFrameSelect) {
-        refFrameSelect.addEventListener("change", (e) => {
-            const val = e.target.value;
-            setRefFrame(val === "" ? null : parseFloat(val));
         });
     }
 
