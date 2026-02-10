@@ -334,31 +334,81 @@ function drawWorldLine(points, color, isObserver, name) {
 
     ctx.stroke();
 
-    // Draw label near top of visible line
+    // Draw label where line exits the visible area
     if (name && points.length >= 2) {
-        // Line goes from points[0] to points[1]
-        // Find where line is at a t value near top of screen
+        const MARGIN = 6; // Consistent margin in pixels
+
+        const w = canvas.width;
+        const h = canvas.height;
+
+        // Get world coordinates of screen edges
         const topLeft = screenToWorld(0, 0);
-        const labelT = topLeft.t - 0.5; // Slightly below top edge
+        const bottomRight = screenToWorld(w, h);
 
-        // Interpolate x position at labelT
-        const t0 = points[0].t;
-        const t1 = points[1].t;
-        const x0 = points[0].x;
-        const x1 = points[1].x;
+        // Line parameters
+        const t0 = points[0].t, t1 = points[1].t;
+        const x0 = points[0].x, x1 = points[1].x;
+        const dt = t1 - t0;
+        const dx = x1 - x0;
 
-        // Linear interpolation: x = x0 + (x1 - x0) * (labelT - t0) / (t1 - t0)
-        const frac = (labelT - t0) / (t1 - t0);
-        const labelX = x0 + (x1 - x0) * frac;
+        // Helper: interpolate x at given t
+        const xAtT = (t) => x0 + dx * (t - t0) / dt;
+        // Helper: interpolate t at given x
+        const tAtX = (x) => t0 + dt * (x - x0) / dx;
 
-        const labelPos = worldToScreen(labelX, labelT);
+        // Find candidate exit points (where line intersects screen edges)
+        const candidates = [];
 
-        // Only draw if on screen
-        if (labelPos.sx >= 0 && labelPos.sx <= canvas.width - 50 &&
-            labelPos.sy >= 10 && labelPos.sy <= canvas.height) {
+        // Top edge intersection (t = topLeft.t)
+        const xAtTop = xAtT(topLeft.t);
+        if (xAtTop >= topLeft.x && xAtTop <= bottomRight.x) {
+            candidates.push({ x: xAtTop, t: topLeft.t, edge: "top" });
+        }
+
+        // Left edge intersection (x = topLeft.x)
+        if (Math.abs(dx) > 1e-10) {
+            const tAtLeft = tAtX(topLeft.x);
+            if (tAtLeft >= bottomRight.t && tAtLeft <= topLeft.t) {
+                candidates.push({ x: topLeft.x, t: tAtLeft, edge: "left" });
+            }
+        }
+
+        // Right edge intersection (x = bottomRight.x)
+        if (Math.abs(dx) > 1e-10) {
+            const tAtRight = tAtX(bottomRight.x);
+            if (tAtRight >= bottomRight.t && tAtRight <= topLeft.t) {
+                candidates.push({ x: bottomRight.x, t: tAtRight, edge: "right" });
+            }
+        }
+
+        // Pick the highest exit point (largest t = smallest screen y)
+        if (candidates.length > 0) {
+            candidates.sort((a, b) => b.t - a.t);
+            const exit = candidates[0];
+            const exitScreen = worldToScreen(exit.x, exit.t);
+
             ctx.fillStyle = color;
             ctx.font = "bold 11px system-ui";
-            ctx.fillText(`(${name})`, labelPos.sx + 5, labelPos.sy + 4);
+            const text = `(${name})`;
+            const textWidth = ctx.measureText(text).width;
+
+            let labelX, labelY;
+
+            if (exit.edge === "right") {
+                // Line exits on right - put label to the left of exit point
+                labelX = exitScreen.sx - textWidth - MARGIN;
+                labelY = exitScreen.sy + MARGIN + 10; // +10 for text baseline
+            } else {
+                // Line exits on top or left - put label to the right of exit point
+                labelX = exitScreen.sx + MARGIN;
+                labelY = exitScreen.sy + MARGIN + 10;
+            }
+
+            // Clamp to keep on screen
+            labelX = Math.max(MARGIN, Math.min(w - textWidth - MARGIN, labelX));
+            labelY = Math.max(MARGIN + 10, Math.min(h - MARGIN, labelY));
+
+            ctx.fillText(text, labelX, labelY);
         }
     }
 }
