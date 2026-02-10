@@ -1,119 +1,21 @@
 ---
 import Layout from "../layouts/Layout.astro";
+import StatusBar from "../components/StatusBar.astro";
+import Appearance from "../components/panels/flavors/Appearance.astro";
+import Objects from "../components/panels/flavors/Objects.astro";
 import "./style.css";
 ---
 
 <Layout>
   <div id="app">
-    <div id="statusBar" class="statusBar">
-      <div id="status">Spacetime Simulator</div>
-
-      <div class="right">
-        <div id="ObjectsBtn" class="toggleBtn">
-          <span>Objects</span>
-        </div>
-
-        <span>|</span>
-
-        <div id="StyleBtn" class="toggleBtn">
-          <span>Style</span>
-        </div>
-
-        <span>|</span>
-
-        <a
-          id="gerhardLink"
-          class="accentColor link"
-          href="https://gerhard.page"
-        >
-          Built by Gerhard
-        </a>
-      </div>
-    </div>
+    <StatusBar panels={["appearance", "objects"]} />
 
     <div id="canvasWrapper">
       <canvas id="view"></canvas>
     </div>
 
-    <div id="objectsPanel" class="appWindow accentColor">
-      <div id="objectsHeader" class="appHeader">
-        <span class="appTitle">Objects</span>
-        <button class="appMinimize accentColor" type="button">-</button>
-      </div>
-
-      <div class="appBody">
-        <div id="objectList"></div>
-
-        <div class="row">
-          <label>
-            Name
-            <input
-              type="text"
-              id="objName"
-              class="textInput accentColor"
-              value="Object A"
-            />
-          </label>
-        </div>
-
-        <div class="row">
-          <label>
-            Position (x)
-            <input
-              type="number"
-              id="objX"
-              class="accentColor"
-              value="0"
-              step="0.1"
-            />
-          </label>
-        </div>
-
-        <div class="row">
-          <label>
-            Velocity (v/c)
-            <input
-              type="number"
-              id="objV"
-              class="accentColor"
-              value="0"
-              step="0.1"
-              min="-0.99"
-              max="0.99"
-            />
-          </label>
-        </div>
-
-        <div class="row">
-          <button id="addObject" class="btn accentColor">Add</button>
-        </div>
-
-        <hr class="divider" />
-
-        <div class="row">
-          <label>
-            Reference Frame
-            <select id="refFrame" class="accentColor"></select>
-          </label>
-        </div>
-      </div>
-    </div>
-
-    <div id="stylePanel" class="appWindow accentColor">
-      <div id="styleHeader" class="appHeader">
-        <span class="appTitle">Style</span>
-        <button class="appMinimize accentColor" type="button">-</button>
-      </div>
-
-      <div class="appBody">
-        <div class="row">
-          <label>
-            Object Color
-            <input type="color" id="objColor" value="#00ffff" />
-          </label>
-        </div>
-      </div>
-    </div>
+    <Appearance />
+    <Objects />
   </div>
 </Layout>
 

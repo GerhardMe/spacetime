@@ -179,9 +179,9 @@ function setStatus(msg) {
 // ------------------ Init UI ------------------
 
 function initUI() {
-    // Register all panels
+    // Register all panels (order determines layout position)
+    registerPanel("appearance");
     registerPanel("objects");
-    registerPanel("style");
 
     // Setup behavior for each
     for (const entry of panels) {

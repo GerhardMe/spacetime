@@ -1,0 +1,67 @@
+---
+import Panel from "../index.astro";
+---
+
+<Panel name="Objects">
+  <div id="objectList"></div>
+
+  <div class="row">
+    <label>
+      Name
+      <input
+        type="text"
+        id="objName"
+        class="textInput accentColor"
+        value="Object A"
+      />
+    </label>
+  </div>
+
+  <div class="row">
+    <label>
+      Position (x)
+      <input
+        type="number"
+        id="objX"
+        class="accentColor"
+        value="0"
+        step="0.1"
+      />
+    </label>
+  </div>
+
+  <div class="row">
+    <label>
+      Velocity (v/c)
+      <input
+        type="number"
+        id="objV"
+        class="accentColor"
+        value="0"
+        step="0.1"
+        min="-0.99"
+        max="0.99"
+      />
+    </label>
+  </div>
+
+  <div class="row">
+    <label>
+      Color
+      <input type="color" id="objColor" value="#00ffff" />
+    </label>
+  </div>
+
+  <div class="row">
+    <button id="addObject" class="btn accentColor">Add</button>
+  </div>
+
+  <hr class="divider" />
+
+  <div class="row">
+    <label>
+      Reference Frame
+      <select id="refFrame" class="accentColor"></select>
+    </label>
+  </div>
+</Panel>

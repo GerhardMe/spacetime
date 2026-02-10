@@ -1,0 +1,20 @@
+---
+interface Props {
+  name: string;
+}
+
+const { name } = Astro.props;
+const id = name.toLowerCase();
+const capitalId = name.charAt(0).toUpperCase() + name.slice(1);
+---
+
+<div id={`${id}Panel`} class="appWindow accentColor">
+  <div id={`${id}Header`} class="appHeader">
+    <span class="appTitle">{name}</span>
+    <button class="appMinimize accentColor" type="button">-</button>
+  </div>
+
+  <div class="appBody">
+    <slot />
+  </div>
+</div>

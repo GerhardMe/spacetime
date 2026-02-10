@@ -1,0 +1,32 @@
+---
+interface Props {
+  panels: string[];
+}
+
+const { panels } = Astro.props;
+---
+
+<div id="statusBar" class="statusBar">
+  <div id="status">Spacetime Simulator</div>
+
+  <div class="right">
+    {panels.map((name, i) => (
+      <>
+        <div id={`${name.charAt(0).toUpperCase() + name.slice(1)}Btn`} class="toggleBtn">
+          <span>{name.charAt(0).toUpperCase() + name.slice(1)}</span>
+        </div>
+        {i < panels.length - 1 && <span>|</span>}
+      </>
+    ))}
+
+    <span>|</span>
+
+    <a
+      id="gerhardLink"
+      class="accentColor link"
+      href="https://gerhard.page"
+    >
+      Built by Gerhard
+    </a>
+  </div>
+</div>

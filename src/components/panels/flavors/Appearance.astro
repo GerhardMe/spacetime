@@ -1,0 +1,28 @@
+---
+import Panel from "../index.astro";
+---
+
+<Panel name="Appearance">
+  <div class="row">
+    <label>
+      Accent Color
+      <input type="color" id="accentColor" value="#00ffff" />
+    </label>
+  </div>
+
+  <hr class="divider" />
+
+  <div class="row">
+    <label>
+      <input type="checkbox" id="showLightcones" />
+      Show Lightcones
+    </label>
+  </div>
+
+  <div class="row">
+    <label>
+      <input type="checkbox" id="showGrid" checked />
+      Show Grid
+    </label>
+  </div>
+</Panel>
