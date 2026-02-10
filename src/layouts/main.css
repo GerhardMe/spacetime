@@ -1,0 +1,51 @@
+html,
+body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    background: #000;
+    color: #eee;
+    font-family: system-ui, -apple-system, sans-serif;
+    overflow: hidden;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+ul,
+ol {
+    list-style: none;
+}
+
+a {
+    color: inherit;
+    text-decoration: none;
+}
+
+button,
+input,
+textarea,
+select {
+    all: unset;
+}
+
+input[type="checkbox"] {
+    margin: 0;
+    appearance: checkbox;
+}
+
+:root {
+    --app-margin: 16px;
+    --app-padding: 11px;
+    --translucent-bg: rgba(0, 0, 0, 0.75);
+    --accent-color: #00ffff;
+}
